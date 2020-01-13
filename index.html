@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Snake Game</title>
+  </head>
+  <body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <script>
+      window.onload = function() {
+        canvas = document.getElementById("gameCanvas");
+        canvasContext = canvas.getContext("2d");
+
+        document.addEventListener("keydown", keyPush);
+        setInterval(game, 1000 / 15);
+      };
+
+      playerPosX = playerPosY = 10;
+      gridSize = tileCount = 20;
+      appleX = appleY = 15;
+      xVelocidade = yVelocidade = 0;
+      trail = [];
+      tail = 5;
+
+      function game() {
+        playerPosX += xVelocidade;
+        playerPosY += yVelocidade;
+        if (playerPosX < 0) {
+          playerPosX = tileCount - 1;
+        }
+        if (playerPosX > tileCount - 1) {
+          playerPosX = 0;
+        }
+        if (playerPosY < 0) {
+          playerPosY = tileCount - 1;
+        }
+        if (playerPosY > tileCount - 1) {
+          playerPosY = 0;
+        }
+
+        canvasContext.fillStyle = "black";
+        canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+
+        canvasContext.fillStyle = "lime";
+        for (var i = 0; i < trail.length; i++) {
+          canvasContext.fillRect(
+            trail[i].x * gridSize,
+            trail[i].y * gridSize,
+            gridSize - 2,
+            gridSize - 2
+          );
+
+          if (trail[i].x == playerPosX && trail[i].y == playerPosY) {
+            tail = 5;
+          }
+        }
+
+        trail.push({ x: playerPosX, y: playerPosY });
+        while (trail.length > tail) {
+          trail.shift();
+        }
+
+        if (appleX == playerPosX && appleY == playerPosY) {
+          tail++;
+
+          appleX = Math.floor(Math.random() * tileCount);
+          appleY = Math.floor(Math.random() * tileCount);
+        }
+
+        canvasContext.fillStyle = "red";
+        canvasContext.fillRect(
+          appleX * gridSize,
+          appleY * gridSize,
+          gridSize - 2,
+          gridSize - 2
+        );
+      }
+
+      function keyPush(e) {
+        switch (e.keyCode) {
+          case 37:
+            xVelocidade = -1;
+            yVelocidade = 0;
+            break;
+          case 38:
+            xVelocidade = 0;
+            yVelocidade = -1;
+            break;
+          case 39:
+            xVelocidade = 1;
+            yVelocidade = 0;
+            break;
+          case 40:
+            xVelocidade = 0;
+            yVelocidade = 1;
+            break;
+        }
+      }
+    </script>
+    <br />
+    <img src="vanilla.png" alt="vanillaJs" />
+  </body>
+</html>
