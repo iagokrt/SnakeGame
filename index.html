@@ -1,74 +1,239 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>Snake Game</title>
     <style>
+      :root {
+        --bg: #1f3a3a;
+        --panel: #132424;
+        --text: #e8ffff;
+        --accent: #29c7c7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        background-color: darkslategrey;
+        margin: 0;
+        min-height: 100vh;
+        background-color: var(--bg);
+        color: var(--text);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-      }
-      canvas {
-        border-radius: 4px;
-        box-shadow: 1px 2px 3.5px darkturquoise;
+        font-family: Arial, Helvetica, sans-serif;
+        gap: 12px;
+        padding: 16px;
       }
 
-      @media only screen and (max-width: 500px) {
-        canvas {
-          width: 300px;
-          height: 300px;
+      .hud {
+        width: min(420px, 100%);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      }
+
+      .badge {
+        font-weight: 700;
+      }
+
+      canvas {
+        width: min(420px, 100%);
+        aspect-ratio: 1 / 1;
+        border-radius: 6px;
+        box-shadow: 1px 2px 3.5px darkturquoise;
+        touch-action: none;
+      }
+
+      .mobile-controls {
+        display: none;
+        width: min(320px, 100%);
+        margin-top: 8px;
+        user-select: none;
+      }
+
+      .controls-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .control-btn {
+        border: none;
+        border-radius: 10px;
+        background: #0f2f2f;
+        color: var(--text);
+        font-size: 1.25rem;
+        font-weight: bold;
+        min-height: 56px;
+      }
+
+      .control-btn:active {
+        background: #1f5050;
+      }
+
+      .empty {
+        visibility: hidden;
+      }
+
+      img {
+        max-width: 90px;
+      }
+
+      @media only screen and (max-width: 768px) {
+        .mobile-controls {
+          display: block;
         }
       }
     </style>
   </head>
   <body>
+    <div class="hud">
+      <span class="badge">Pontos: <span id="score">0</span></span>
+      <span id="status">Jogando</span>
+    </div>
+
     <canvas id="gameCanvas" width="400" height="400"></canvas>
 
+    <div class="mobile-controls" aria-label="Controles mobile">
+      <div class="controls-grid">
+        <button class="control-btn empty" aria-hidden="true"></button>
+        <button class="control-btn" data-dir="up" aria-label="Mover para cima">↑</button>
+        <button class="control-btn empty" aria-hidden="true"></button>
+        <button class="control-btn" data-dir="left" aria-label="Mover para esquerda">←</button>
+        <button class="control-btn" data-dir="down" aria-label="Mover para baixo">↓</button>
+        <button class="control-btn" data-dir="right" aria-label="Mover para direita">→</button>
+      </div>
+    </div>
+
+    <img src="vanilla.png" alt="vanillaJs" />
+
     <script>
+      let canvas;
+      let canvasContext;
+      let playerPosX = 10;
+      let playerPosY = 10;
+      const gridSize = 20;
+      const tileCount = 20;
+      let appleX = 15;
+      let appleY = 15;
+      let xVelocidade = 1;
+      let yVelocidade = 0;
+      let trail = [];
+      let tail = 5;
+      let points = 0;
+      let gameOver = false;
+      let touchStartX = null;
+      let touchStartY = null;
+
+      const scoreEl = document.getElementById("score");
+      const statusEl = document.getElementById("status");
+
       window.onload = function() {
         canvas = document.getElementById("gameCanvas");
         canvasContext = canvas.getContext("2d");
 
         document.addEventListener("keydown", keyPush);
         setInterval(game, 1000 / 15);
+
+        const mobileButtons = document.querySelectorAll("[data-dir]");
+        mobileButtons.forEach((btn) => {
+          btn.addEventListener("click", () => setDirection(btn.dataset.dir));
+        });
+
+        canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+        canvas.addEventListener("touchend", onTouchEnd, { passive: true });
       };
 
-      playerPosX = playerPosY = 10;
-      gridSize = tileCount = 20;
-      appleX = appleY = 15;
-      xVelocidade = yVelocidade = 1;
-      trail = [];
-      tail = 5;
+      function setDirection(direction) {
+        switch (direction) {
+          case "left":
+            if (xVelocidade !== 1) {
+              xVelocidade = -1;
+              yVelocidade = 0;
+            }
+            break;
+          case "up":
+            if (yVelocidade !== 1) {
+              xVelocidade = 0;
+              yVelocidade = -1;
+            }
+            break;
+          case "right":
+            if (xVelocidade !== -1) {
+              xVelocidade = 1;
+              yVelocidade = 0;
+            }
+            break;
+          case "down":
+            if (yVelocidade !== -1) {
+              xVelocidade = 0;
+              yVelocidade = 1;
+            }
+            break;
+        }
+      }
 
-      var points = 0;
-      var gameOver = false;
+      function onTouchStart(e) {
+        const touch = e.changedTouches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+      }
+
+      function onTouchEnd(e) {
+        if (touchStartX === null || touchStartY === null) return;
+
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+
+        if (Math.abs(dx) < 15 && Math.abs(dy) < 15) return;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          setDirection(dx > 0 ? "right" : "left");
+        } else {
+          setDirection(dy > 0 ? "down" : "up");
+        }
+
+        touchStartX = null;
+        touchStartY = null;
+      }
+
+      function resetGame() {
+        tail = 5;
+        points = 0;
+        gameOver = false;
+        trail = [];
+        playerPosX = 10;
+        playerPosY = 10;
+        xVelocidade = 1;
+        yVelocidade = 0;
+        statusEl.textContent = "Jogando";
+      }
 
       function game() {
         playerPosX += xVelocidade;
         playerPosY += yVelocidade;
-        if (playerPosX < 0) {
-          playerPosX = tileCount - 1;
-        }
-        if (playerPosX > tileCount - 1) {
-          playerPosX = 0;
-        }
-        if (playerPosY < 0) {
-          playerPosY = tileCount - 1;
-        }
-        if (playerPosY > tileCount - 1) {
-          playerPosY = 0;
-        }
+
+        if (playerPosX < 0) playerPosX = tileCount - 1;
+        if (playerPosX > tileCount - 1) playerPosX = 0;
+        if (playerPosY < 0) playerPosY = tileCount - 1;
+        if (playerPosY > tileCount - 1) playerPosY = 0;
 
         canvasContext.fillStyle = "black";
         canvasContext.fillRect(0, 0, canvas.width, canvas.height);
 
         canvasContext.fillStyle = "lime";
-        for (var i = 0; i < trail.length; i++) {
+        for (let i = 0; i < trail.length; i++) {
           canvasContext.fillRect(
             trail[i].x * gridSize,
             trail[i].y * gridSize,
@@ -76,29 +241,25 @@
             gridSize - 2
           );
 
-          if (trail[i].x == playerPosX && trail[i].y == playerPosY) {
-            tail = 5;
-            points = 0;
+          if (trail[i].x === playerPosX && trail[i].y === playerPosY) {
             gameOver = true;
-
-            console.log(`Game Over`);
+            statusEl.textContent = "Game Over (reiniciando...)";
+            setTimeout(resetGame, 700);
           }
         }
 
         trail.push({ x: playerPosX, y: playerPosY });
-        while (trail.length > tail) {
-          trail.shift();
-        }
+        while (trail.length > tail) trail.shift();
 
-        if (appleX == playerPosX && appleY == playerPosY) {
+        if (appleX === playerPosX && appleY === playerPosY) {
           tail++;
           points++;
+          scoreEl.textContent = points;
           appleX = Math.floor(Math.random() * tileCount);
           appleY = Math.floor(Math.random() * tileCount);
-          console.log(points);
         }
 
-        canvasContext.fillStyle = "blue";
+        canvasContext.fillStyle = "deepskyblue";
         canvasContext.fillRect(
           appleX * gridSize,
           appleY * gridSize,
@@ -108,27 +269,16 @@
       }
 
       function keyPush(e) {
-        switch (e.keyCode) {
-          case 37:
-            xVelocidade = -1;
-            yVelocidade = 0;
-            break;
-          case 38:
-            xVelocidade = 0;
-            yVelocidade = -1;
-            break;
-          case 39:
-            xVelocidade = 1;
-            yVelocidade = 0;
-            break;
-          case 40:
-            xVelocidade = 0;
-            yVelocidade = 1;
-            break;
-        }
+        const keyMap = {
+          37: "left",
+          38: "up",
+          39: "right",
+          40: "down"
+        };
+
+        const direction = keyMap[e.keyCode];
+        if (direction) setDirection(direction);
       }
     </script>
-    <br />
-    <img src="vanilla.png" alt="vanillaJs" />
   </body>
 </html>
